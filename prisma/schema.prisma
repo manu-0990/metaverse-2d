@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  password       String
+  username       String
+  avatarUrl      String
+  selectedAvatar Avatar?
+  statusMessage  String?
+  role           Role         @default(USER)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  spacesOwned    Space[]      @relation("SpaceOwner")
+  memberships    Membership[]
+  invitesSent    Invite[]     @relation("InviteSender")
+}
+
+model Avatar {
+  id             String @id @default(cuid())
+  userId         String @unique
+  roomId         String
+        
+  x              Int
+  y              Int
+  sprite         String
+  // direction   String?  // Optional: "up", "down", "left", "right"
+  // status      String?  // Optional: "idle", "moving", "talking"
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User @relation(fields: [userId], references: [id])
+  room           Room @relation(fields: [roomId], references: [id])
+}
+
+model Space {
+  id             String       @id @default(cuid())
+  name           String
+  description    String?
+  ownerId        String
+  owner          User         @relation("SpaceOwner", fields: [ownerId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  defaultRoomId  String?
+  settings       Json         @default("{}")
+  isFeatured     Boolean      @default(false)
+  rooms          Room[]
+  members        Membership[]
+  invites        Invite[]
+}
+
+model Membership {
+  id             String     @id @default(cuid())
+  userId         String
+  spaceId        String
+  role           MemberRole @default(MEMBER)
+  joinedAt       DateTime   @default(now())
+
+  user           User  @relation(fields: [userId], references: [id])
+  space          Space @relation(fields: [spaceId], references: [id])
+
+  @@unique([userId, spaceId])
+}
+
+model Room {
+  id             String   @id @default(cuid())
+  name           String
+  spaceId        String
+  mapDataUrl     String
+  isPrivate      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  space          Space        @relation(fields: [spaceId], references: [id])
+  objects        RoomObject[]
+  avatar         Avatar[]
+}
+
+model RoomObject {
+  id             String @id @default(cuid())
+  roomId         String
+  type           String
+  x              Int
+  y              Int
+  properties     Json
+
+  room           Room @relation(fields: [roomId], references: [id])
+}
+
+model Invite {
+  id             String     @id @default(cuid())
+  spaceId        String
+  senderId       String
+  email          String
+  role           MemberRole
+  token          String     @unique
+  createdAt      DateTime   @default(now())
+    
+  space          Space @relation(fields: [spaceId], references: [id])
+  sender         User  @relation("InviteSender", fields: [senderId], references: [id])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+  GUEST
+}
